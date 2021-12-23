@@ -15,7 +15,7 @@ use serenity::framework::standard::{
 use std::env;
 
 #[group]
-#[commands(ping)]
+#[commands(ping,amigay)]
 struct General;
 
 struct Handler;
@@ -48,6 +48,13 @@ async fn main() {
 #[command]
 async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
     msg.reply(ctx, "Pong!").await?;
+
+    Ok(())
+}
+
+#[command]
+async fn amigay(ctx: &Context, msg: &Message) -> CommandResult {
+    msg.reply(ctx, "`Yes, you are gay.`").await?;
 
     Ok(())
 }
