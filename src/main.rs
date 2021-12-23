@@ -1,3 +1,5 @@
+extern crate dotenv;
+use dotenv::dotenv;
 use serenity::async_trait;
 use serenity::client::{Client, Context, EventHandler};
 use serenity::model::channel::Message;
@@ -23,6 +25,8 @@ impl EventHandler for Handler {}
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("!")) // set the bot's prefix to "~"
         .group(&GENERAL_GROUP);
