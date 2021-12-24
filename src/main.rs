@@ -64,7 +64,7 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 async fn ami(ctx: &Context, msg: &Message) -> CommandResult {
   let words: Vec<&str> = msg.content.split(" ").collect();
-  let strip_command_and_rephrase = words[1..].join(" ").replace("?", ".");
+  let strip_command_and_rephrase = words[1..].join(" ").replace("?", "");
   msg.reply(ctx, format!("`Yes, {}, you are {}.`", msg.author.name, strip_command_and_rephrase)).await?;
 
   Ok(())
