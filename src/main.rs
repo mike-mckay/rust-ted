@@ -6,6 +6,7 @@ use {
   dotenv::dotenv
 };
 
+use rand::Rng;
 use serenity::async_trait;
 use serenity::client::{Client, Context, EventHandler};
 use serenity::model::channel::Message;
@@ -22,7 +23,7 @@ use serenity::framework::standard::{
 use std::env;
 
 #[group]
-#[commands(ami, roll)]
+#[commands(ami, roll, r)]
 struct General;
 
 struct Handler;
@@ -51,6 +52,16 @@ async fn main() {
   if let Err(why) = client.start().await {
     println!("An error occurred while running the client: {:?}", why);
   }
+}
+
+#[command]
+async fn r(ctx: &Context, msg: &Message) -> CommandResult {
+  match msg.content.roll() {
+    Ok(n) => msg.reply(ctx, format!("```{}```", n.to_string())).await?,
+    Err(e) => msg.reply(ctx, format!("{}", e)).await?
+  };
+
+  Ok(())
 }
 
 #[command]
@@ -93,20 +104,23 @@ impl Contentful for str {
 }
 
 
-pub trait Faceted {
-  fn face_count(&self) -> Result<u16, String>;
-}
+impl ToString for RollResult {
+  fn to_string(&self) -> String {
+    let mut output = if self.rolls.len() == 1 { String::new() } else { format!("Result: {}.", self.total) };
+    let rolls = &self.rolls;
 
+    for (_key, value) in rolls.into_iter() {
+      output = format!("{}\n {} x d{} - {}", output, value.multiplier, value.faces, value.total);
 
-impl Faceted for str {
-  fn face_count(&self) -> Result<u16, String> {
-    let number_chars: Vec<char> = self.chars().filter(|c| c.is_numeric()).collect();
-    let number_string: String = number_chars.iter().collect();
-
-    match number_string.parse::<u16>() {
-      Ok(n) => Ok(n),
-      Err(e) => Err(format!("That number sucks: {}", e)),
+      if value.results.len() > 1  && value.results.len() < 10 {
+        for r in &value.results {
+          output = format!("{}\n  {}", output, r);
+        }
+      } else if value.results.len() > 10 {
+        output = format!("{}\n  >: | Thats a lot of dice, you'll just have to trust me.", output);
+      }
     }
+    output
   }
 }
 
@@ -116,29 +130,12 @@ pub struct RollResult {
   total: u128
 }
 
-impl ToString for RollResult {
-  fn to_string(&self) -> String {
-    let mut output = if self.rolls.len() == 1 { String::new() } else { format!("Result: {}.", self.total) };
-    let rolls = &self.rolls;
-
-    for (_key, value) in rolls.into_iter() {
-      output = format!("{}\n {} x d{} - {}", output, value.multiplier, value.faces, value.total);
-
-      if value.results.len() > 1 {
-        for r in &value.results {
-          output = format!("{}\n  {}", output, r);
-        }
-      }
-    }
-    output
-  }
-}
 
 pub struct RollSet {
   faces: u16,
-  multiplier: u16,
+  multiplier: u128,
   total: u128,
-  results: Vec<u32>
+  results: Vec<u128>
 }
 
 
@@ -169,12 +166,12 @@ impl Rollable for str {
     }
 
     let mut is_seeking_multiplier = true;
-    let mut current_multiplier = String::new();
-    let mut current_faces = String::new();
+    let mut current_multiplier =  if clean_string.chars().next().unwrap() == 'd' { "1".to_string() } else { String::new() };
     let mut chars = clean_string.chars().peekable();
+    let mut current_faces = String::new();
 
     println!("Looking for multipliers:");
-    'charloop: loop {
+    loop {
       match chars.next() {
         Some(c) => {
           println!("  current letter: {}", c);
@@ -201,7 +198,7 @@ impl Rollable for str {
                 } else {
                   println!("|{}|", c.to_string());
                   if c == 'd' && chars.peek().unwrap() == &' ' {
-                    continue 'charloop;
+                    continue
                   }
                 }
                 match (current_multiplier.parse::<u16>(), current_faces.parse::<u16>()) {
@@ -215,12 +212,15 @@ impl Rollable for str {
                         , total: 0
                         , results: Vec::new()
                     });
-
-                    rolls.multiplier += multiplier;
-                    let result = (multiplier * faces) as u32;
-                    roll_result.total += result as u128;
-                    rolls.total += result as u128;
-                    rolls.results.push(result);
+                    
+                    for _i in 0..multiplier {
+                      let mut rng = rand::thread_rng();
+                      let roll = rng.gen_range(1..rolls.faces) as u128;
+                      rolls.results.push(roll);
+                      rolls.total += roll as u128;
+                      roll_result.total += roll as u128;
+                    }
+                    rolls.multiplier += multiplier as u128;
 
                     if c == 'd' {
                       current_multiplier = "1".to_string();
@@ -266,13 +266,6 @@ impl Rollable for str {
 
 
 #[test]
-fn test_dice_conversion() {
-  assert_eq!("d20".face_count(), Ok(20));
-  assert_eq!("d20fj999bblkjh".face_count(), Ok(20999));
-  assert!("d20fj999bbl9999kjh999a99999999".face_count().is_err());
-}
-
-#[test]
 fn test_roll() {
   match "!roll 1d202d40".roll() {
     Ok(n) => println!("{}", n.to_string()),
@@ -287,6 +280,10 @@ fn test_roll() {
     Err(e) => println!("{}", e) 
   };
   match "!roll 1d 480598309 fwaefj efjij 4d5t969 fejfeijijfj4d438".roll() {
+    Ok(n) => println!("{}", n.to_string()),
+    Err(e) => println!("{}", e) 
+  };
+  match "!roll d20".roll() {
     Ok(n) => println!("{}", n.to_string()),
     Err(e) => println!("{}", e) 
   };
