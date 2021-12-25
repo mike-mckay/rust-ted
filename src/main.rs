@@ -82,7 +82,6 @@ async fn ami(ctx: &Context, msg: &Message) -> CommandResult {
     , msg.content
       .strip_command()
       .replace("?", "")
-      .replace("my", "your")
   ).to_string();
 
   msg.reply(ctx, wisdom).await?;
